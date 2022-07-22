@@ -69,8 +69,6 @@ def perform(level, box, options):
 	findHouses(level, box)
 	fixHouses()
 	for house in listOfHouses:
-		RRTstar(level, box, house, tileMap)
-	for house in listOfHouses:
 		if len(listOfHouses) < 1:
 			print("Please select a house")
 		print(house.number, house.x, house.y, house.z, house.workplaceNumber)
@@ -78,6 +76,8 @@ def perform(level, box, options):
 		if len(listOfWorkplaces) < 1:
 			print("Please pick a workplace")
 		print(workplace.number, workplace.x, workplace.y, workplace.z)
+	for house in listOfHouses:
+		RRTstar(level, box, house, tileMap)
 
 def RRTstar(level, box, house, tileMap):
 	nodeList = []
@@ -92,7 +92,9 @@ def RRTstar(level, box, house, tileMap):
 		if work.number == house.workplaceNumber:
 			endNode = node(work.x,work.y,work.z,0,0,0,0)
 	while endFound == False:
+		skip = False
 		tooHigh = False
+		dontAdd = False
 		#randomize a location for the next point within the selected area
 		newPositionx = random.randint(0,widthG)
 		newPositionz = random.randint(0,depthG)
@@ -100,40 +102,47 @@ def RRTstar(level, box, house, tileMap):
 		distanceX = 3
 		distanceZ = 3
 		#use the randomized values to pick the next node randomly
-		nodeX = box.minx+newPositionx
-		nodeZ = box.minz+newPositionz
-		for potentialParent in nodeList:
-			if abs(nextNode.x - potentialParent.x) == 0 and abs(nextNode.z - potentialParent.z) == 0:
-				continue
+		#nodeX = box.minx+newPositionx
+		#nodeZ = box.minz+newPositionz
 		nodeY = 0
 		nextNode = node(nodeX, nodeY, nodeZ, 0,0,0,0)
 		nodeY = getY(tileMap, nextNode)
 		nextNode.y = nodeY
 		print("New Node: ", nextNode.x, nextNode.y, nextNode.z)
-		# check if the random node is within the range of the maximum placement radius for all possible parent nodes, if its not get a new one
 		for potentialParent in nodeList:
-			if abs(nextNode.x - potentialParent.x) =< distanceX and abs(nextNode.z - potentialParent.z) =< distanceZ:
-				# check if path to chosen node is not obstructed. If it isnt then connect it to the node that would give it the fastest path back to the start
-				if getInterPath(potentialParent, nextNode):
-					if nextNode.startpathcost == 0 or nextNode.nodecost < newNodePathCost:
-						nextNode.nodecost = newNodePathCost
-						nextNode.parent = potentialParent
-						nextNode.parentpath = potentialPath
-						nodeList.append(nextNode)
-		#ADDITIONALLY NEED TO CHECK IF ANY NEARBY NODES CAN BE ADJUSTED TO CONNECT TO THE CURRENT ONE OF THEIR CURRENT ONE
+			if abs(nextNode.x - potentialParent.x) == 0 and abs(nextNode.z - potentialParent.z) == 0:
+				skip = True
+		# check if the random node is within the range of the maximum placement radius for all possible parent nodes, if its not get a new one
+		if not skip:
+			for potentialParent in nodeList:
+				if abs(nextNode.x - potentialParent.x) <= distanceX and abs(nextNode.z - potentialParent.z) <= distanceZ:
+					# check if path to chosen node is not obstructed. If it isnt then connect it to the node that would give it the fastest path back to the start
+					if getInterPath(potentialParent, nextNode, level, box, tileMap,0):
+						if nextNode.startpathcost == 0 or (potentialParent.startpathcost + newNodePathCost) < nextNode.startpathcost:
+							nextNode.nodecost = newNodePathCost
+							nextNode.startpathcost = potentialParent.startpathcost + newNodePathCost
+							nextNode.parent = potentialParent
+							nextNode.parentpath = potentialPath
+						if checkEnd(endNode,nextNode,distanceX,distanceZ):
+							#if you find the end, set the endnode as the next Node and set the current node (if it can reach the end actually) as the parent of it.
+
+							
+
+							pathToEnd = getPath(startNode,nextNode)
+							placePath(pathToEnd,tileMap,level,box, tileMap)
+			if nextNode.parent != 0:
+				nodeList.append(nextNode)
+		#ADDITIONALLY NEED TO CHECK IF ANY NEARBY NODES CAN BE ADJUSTED TO CONNECT TO THE CURRENT ONE OVER THEIR CURRENT PARENT
 
 
 
-		if checkEnd(endNode,nextNode):
-			if getInterPath(nextNode,endNode):
-				endFound = True
-				pathToEnd = getPath(startNode,nextNode)
-				placePath(pathToEnd,tileMap,level,box)
-				return
+		pathToEnd = getPath(startNode,nextNode)
+		placePath(pathToEnd,startNode,nextNode,tileMap,level,box)
+
 		endFound = True
 
-def checkEnd(endNode,nextNode):
-	if abs(endNode.x - nextNode.x) =< distanceX and abs(endNode.z - nextNode.z) =< distanceZ:
+def checkEnd(endNode,nextNode, distanceX, distanceZ):
+	if abs(endNode.x - nextNode.x) <= distanceX and abs(endNode.z - nextNode.z) <= distanceZ:
 		return True
 	else:
 		return False
@@ -149,6 +158,10 @@ def getPath(startNode,currentNode):
 		nextNode = nextNode.parent
 	return pathTaken
 
+def placePath(pathTaken,startNode,nextNode,tileMap,level,box):
+	for node in pathTaken:
+			utilityFunctions.setBlock(level, (4, 0), node.x, node.y, node.z)
+
 def getY(tileMap, tileXZ):
 	ymax = 0
 	for tile in tileMap.flatten():
@@ -160,64 +173,6 @@ def getCost(thisY, thatY):
 	cost = 1 + (abs((abs(thisY)-abs(thatY)))*3)
 	return cost
 
-def getInterPath(potentialParent, nextNode):
-	global potentialpath
-	potentialpath = []
-	global tooHigh
-	tooHigh = False
-	global newNodePathCost
-	newNodePathCost = 0
-	thisNode = nextNode
-	changeMade = False
-	xabove = False
-	zabove = False
-	xbelow = False
-	zbelow = False
-	newXValue = 0
-	newZValue = 0
-	newYValue = 0
-	blockCost = 0
-	while thisNode.x != potentialParent.x and thisNode.z != potentialParent.z:
-		if checkMat(thisNode.x,thisNode.y,thisNode.z, level, box):
-			changeMade = False
-			xdiff = abs(potentialParent.x - thisNode.x)
-			zdiff =  abs(potentialParent.z - thisNode.z)
-			if xdiff == 0 and zdiff == 0:
-				return potentialpath
-			if thisNode.x > potentialParent.x:
-				xabove = True
-			if thisNode.z > potentialParent.z:
-				zabove = True
-			if thisNode.x > potentialParent.x:
-				xbelow = True
-			if thisNode.z > potentialParent.z:
-				zbelow = True
-	#I have to know if the new nodes X and Z values are above or below the potential parent node so I can construct a path back to the parent
-			if xabove and not changeMade:
-				newXValue = thisNode.x-1
-			if zabove and not changeMade:
-				newZValue = thisNode.z-1
-			if xbelow and not changeMade:
-				newXValue = thisNode.x+1
-			if zbelow and not changeMade:
-				newZValue = thisNode.z+1
-			oldYValue = thisNode.y
-	#must check if each block on the way back is too high
-			thisNode = node(newXValue,0,newZValue,0,0,0,0)
-			newYValue = getY(tileMap,thisNode)
-			getTooHigh(oldYValue,newYValue)
-			if tooHigh:
-				return False
-			else:
-				thisNode.y = newYValue
-				#tally up the total cost required to get back to the parent node
-				newNodePathCost = newNodePathCost + getCost(oldYValue,newYValue)
-				#add the block to the path between the nodes
-				potentialpath.append(thisNode)
-	else:
-		return False
-	return True
-
 def getTooHigh(thisY, thatY):
 	global tooHigh
 	difference = abs((abs(thisY)-abs(thatY)))
@@ -227,9 +182,102 @@ def getTooHigh(thisY, thatY):
 		tooHigh = False
 	return
 
-def placePath(pathTaken,tileMap,level,box):
-	for node in pathTaken:
-		utilityFunctions.setBlock(level, (4, 0), node.x, node.y, node.z)
+def getInterPath(potentialParent, nextNode, level, box, tileMap, XorZ):
+	global potentialPath
+	potentialPath = []
+	global tooHigh
+	tooHigh = False
+	global newNodePathCost
+	newNodePathCost = 0
+	potentialPath.append(nextNode)
+	thisNode = nextNode
+	changeMade = False
+	newXValue = 0
+	newZValue = 0
+	newYValue = 0
+	counter = 0
+	xdiff = abs(potentialParent.x - thisNode.x)
+	zdiff =  abs(potentialParent.z - thisNode.z)
+	while thisNode.x != potentialParent.x or thisNode.z != potentialParent.z:
+		if checkMat(thisNode.x,thisNode.y,thisNode.z, level, box):
+			xabove = False
+			zabove = False
+			xbelow = False
+			zbelow = False
+			counter = counter + 1
+			print("count: ",counter)
+			print(thisNode.x, thisNode.z)
+			print(potentialParent.x, potentialParent.z)
+			changeMade = False
+			newXValue = thisNode.x
+			newZValue = thisNode.z
+	#I have to know if the new nodes X and Z values are above or below the potential parent node so I can construct a path back to the parent
+			if thisNode.x > potentialParent.x:
+				xabove = True
+			if thisNode.z > potentialParent.z:
+				zabove = True
+			if thisNode.x < potentialParent.x:
+				xbelow = True
+			if thisNode.z < potentialParent.z:
+				zbelow = True
+			if XorZ == 0:
+				if xabove and not changeMade:
+					newXValue = thisNode.x-1
+					changeMade = True
+				if xbelow and not changeMade:
+					newXValue = thisNode.x+1
+					changeMade = True
+				if zabove and not changeMade:
+					newZValue = thisNode.z-1
+					changeMade = True
+				if zbelow and not changeMade:
+					newZValue = thisNode.z+1
+					changeMade = True
+			else:
+				if zabove and not changeMade:
+					newZValue = thisNode.z-1
+					changeMade = True
+				if zbelow and not changeMade:
+					newZValue = thisNode.z+1
+					changeMade = True
+				if xabove and not changeMade:
+					newXValue = thisNode.x-1
+					changeMade = True
+				if xbelow and not changeMade:
+					newXValue = thisNode.x+1
+					changeMade = True
+			oldYValue = thisNode.y
+	#must check if each block on the way back is too high
+			thisNode = node(newXValue,0,newZValue,0,0,0,0)
+			newYValue = getY(tileMap,thisNode)
+			getTooHigh(oldYValue,newYValue)
+			if tooHigh:
+				if XorZ == 0:
+					print("RECALL")
+					if getInterPath(potentialParent, nextNode, level, box, tileMap, 1):
+						print(potentialPath)
+						return True
+				return False
+			else:
+				thisNode.y = newYValue
+				#tally up the total cost required to get back to the parent node
+				newNodePathCost = newNodePathCost + getCost(oldYValue,newYValue)
+				#add the block to the path between the nodes
+				print("Added Node")
+				if(thisNode.x == potentialParent.x and thisNode.z == potentialParent.z):
+					return True
+				else:
+					potentialPath.append(thisNode)
+		else:
+			if XorZ == 0:
+				print("RECALL")
+				if getInterPath(potentialParent, nextNode, level, box, tileMap, 1):
+					print(potentialPath)
+					return True
+			return False
+	print(len(potentialPath))
+	print("clearly they are equal")
+	return True
 
 def checkMat(x,y,z,level,box):
 	global endFound
@@ -294,9 +342,7 @@ def findHouses(level, box):
 def fixHouses():
 	currentWorkplaces = []
 	for h in listOfHouses:
-		h.workplaceNumber = 2
 		currentWorkplaces.append(h.workplaceNumber)
-	print(currentWorkplaces)
 	for work in listOfWorkplaces:
 		if work.number not in currentWorkplaces:
 			dupes = 0
@@ -304,7 +350,6 @@ def fixHouses():
 				for i in range(len(listOfWorkplaces)+1):
 					if i == h.workplaceNumber:
 						dupes += 1
-						print(dupes)
 						if dupes > 1:
 							h.workplaceNumber = work.number
 							return
