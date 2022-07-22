@@ -118,7 +118,7 @@ def Astar(level, box, house, tileMap):
 			if direction == 4:
 				childNode = node(currentNode.x,currentNode.y,currentNode.z-1,0,0,currentNode)
 			childNode.y = getY(tileMap,childNode)
-			getTooHigh(tileMap,childNode)
+			getTooHigh(currentNode.y,childNode.y)
 			if tooHigh:
 				continue
 			elif checkMat(childNode.x,childNode.y,childNode.z, level, box):
@@ -201,7 +201,7 @@ def getTileMap (level, box, maxHeight, minHeight):
 	global depthG
 
 	widthG = xmax-xmin+1
-	depthG = xmax-xmin+1
+	depthG = zmax-zmin+1
 
 	tileMap = empty( (width,depth) ,dtype=object)
 
