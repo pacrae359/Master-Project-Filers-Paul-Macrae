@@ -1,3 +1,4 @@
+from __future__ import division
 import time # for timing
 from math import sqrt, tan, sin, cos, pi, ceil, floor, acos, atan, asin, degrees, radians, log, atan2, acos, asin
 from random import *
@@ -11,9 +12,10 @@ listOfHouses = []
 listOfWorkplaces = []
 endFound = False
 tooHigh = False
+paths = []
 
 inputs = (
-	("A* Road Generator", "label"),
+	("A* Road Evaluator", "label"),
 	("Material", alphaMaterials.BlockofQuartz),
 	("Creator: Paul Macrae", "label"),
 	)
@@ -47,7 +49,7 @@ class tile:
 		self.y = y
 		self.z = z
 		self.material = material
-
+#class for storing node information
 class node:
 	def __init__(self, x, y, z, fvalue, gcost, parent):
 		self.x = x
@@ -56,15 +58,21 @@ class node:
 		self.fvalue = fvalue
 		self.gcost = gcost
 		self.parent = parent
+#class for storing details of each path and their destination.
+class pathcosthouse:
+	def __init__(self, path, cost, house):
+		self.path = path
+		self.cost = cost
+		self.house = house
 
 def perform(level, box, options):
+	global paths
 	seed()
 	tileMap = getTileMap(level, box, 255, 0)
 	findWorkplaces(level, box)
 	findHouses(level, box)
 	fixHouses()
-	for house in listOfHouses:
-		Astar(level, box, house, tileMap)
+	totalpathcost = 0
 	for house in listOfHouses:
 		if len(listOfHouses) < 1:
 			print("Please select a house")
@@ -73,11 +81,20 @@ def perform(level, box, options):
 		if len(listOfWorkplaces) < 1:
 			print("Please pick a workplace")
 		print(workplace.number, workplace.x, workplace.y, workplace.z)
+	for house in listOfHouses:
+		Astar(level, box, house, tileMap)
+	for pathcosts in paths:
+		totalpathcost = totalpathcost + pathcosts.cost
+	totalpathcost = totalpathcost / len(paths)
+	print("Average Path Cost with current street network: ", totalpathcost)
+
 
 def Astar(level, box, house, tileMap):
 	global tooHigh
 	openList = []
 	closedList = []
+	del openList[:]
+	del closedList[:]
 	currentNode = 0
 	gcost = 0
 	global endFound
@@ -91,7 +108,7 @@ def Astar(level, box, house, tileMap):
 		#if you have reached the end node, stop searching and get the path taken to the start
 		if endFound:
 			pathToEnd = getPath(startNode,currentNode)
-			placePath(pathToEnd,tileMap,level,box)
+			savePath(house,currentNode,pathToEnd,tileMap,level,box)
 			return
 		#have an f value so high it will definitely get replaced every iteration
 		lowestF = 10000
@@ -147,7 +164,7 @@ def checkOpenList(childNode,openList):
 def checkClosedList(childNode,closedList,openList):
 	for listNode in closedList:
 		if listNode.x == childNode.x and listNode.y == childNode.y and listNode.z == childNode.z:
-			if listNode.gcost <= childNode.gcost:
+			if listNode.gcost > childNode.gcost:
 				closedList.remove(listNode)
 				openList.append(listNode)
 	openList.append(childNode)
@@ -163,9 +180,28 @@ def getPath(startNode,currentNode):
 		nextNode = nextNode.parent
 	return pathTaken
 
-def placePath(pathTaken,tileMap,level,box):
-	for node in pathTaken:
-		utilityFunctions.setBlock(level, (4, 0), node.x, node.y, node.z)
+def savePath(house,currentNode,pathTaken,tileMap,level,box):
+	global paths
+	thisPath = pathcosthouse(pathTaken,currentNode.gcost,house)
+	paths.append(thisPath)
+	print("Path found from house number: ", house.number,"With cost: ", currentNode.gcost)
+	return
+
+#def blockCosts():
+	#if block == 35 and data == 4:
+	#	return False
+	#if block == 35 and data == 11:
+	#	endFound = True
+	#	return False
+	#if block == 9 and data == 0:
+	#	return False
+	#if block == 11 and data == 0:
+	#	return False
+	#if block == 5 and data == 1:
+	#	return False
+	#if block == 1 and data == 4:
+	#	return False
+	#return True
 
 def checkMat(x,y,z,level,box):
 	global endFound
@@ -280,4 +316,4 @@ def getHeuristic(thisPoint, end):
 	zThis = thisPoint.z
 	xEnd = end.x
 	zEnd = end.z
-	return (abs(abs(xThis) - abs(xEnd)) + abs(abs(zThis) - abs(zEnd)))
+	return abs(abs(abs(xThis) - abs(xEnd)) + abs(abs(zThis) - abs(zEnd)))
