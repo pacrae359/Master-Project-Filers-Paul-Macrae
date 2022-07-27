@@ -15,7 +15,7 @@ tooHigh = False
 paths = []
 
 inputs = (
-	("A* Road Evaluator", "label"),
+	("Desire Paths Street Network (Non-Iterative)", "label"),
 	("Creator: Paul Macrae", "label"),
 	)
 #keeping these here as a reference of which blocks I am interested in.
@@ -86,7 +86,6 @@ def perform(level, box, options):
 		totalpathcost = totalpathcost + pathcosts.cost
 	totalpathcost = totalpathcost / len(paths)
 	print("Average Path Cost with current street network: ", totalpathcost)
-
 
 def Astar(level, box, house, tileMap):
 	global tooHigh
