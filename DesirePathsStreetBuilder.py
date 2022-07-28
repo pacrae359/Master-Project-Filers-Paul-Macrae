@@ -13,6 +13,8 @@ listOfWorkplaces = []
 endFound = False
 tooHigh = False
 paths = []
+heatMap = []
+budget = 0
 
 inputs = (
 	("Desire Paths Street Network (Non-Iterative)", "label"),
@@ -48,6 +50,15 @@ class tile:
 		self.y = y
 		self.z = z
 		self.material = material
+
+class heatmaptile:
+	def __init__(self, x, y, z, crossed, material):
+		self.x = x
+		self.y = y
+		self.z = z
+		self.crossed = crossed
+		self.material = material
+
 #class for storing node information
 class node:
 	def __init__(self, x, y, z, fvalue, gcost, parent):
@@ -57,6 +68,7 @@ class node:
 		self.fvalue = fvalue
 		self.gcost = gcost
 		self.parent = parent
+
 #class for storing details of each path and their destination.
 class pathcosthouse:
 	def __init__(self, path, cost, house):
@@ -65,6 +77,7 @@ class pathcosthouse:
 		self.house = house
 
 def perform(level, box, options):
+	global heatMap
 	global paths
 	seed()
 	tileMap = getTileMap(level, box, 255, 0)
@@ -82,12 +95,13 @@ def perform(level, box, options):
 		print(workplace.number, workplace.x, workplace.y, workplace.z)
 	for house in listOfHouses:
 		Astar(level, box, house, tileMap)
-	for pathcosts in paths:
-		totalpathcost = totalpathcost + pathcosts.cost
-	totalpathcost = totalpathcost / len(paths)
-	print("Average Path Cost with current street network: ", totalpathcost)
+	findHeatMap(heatMap, paths, level, box, house, tileMap)
+	desirePathValues = findDesirePaths(heatMap)
+	placeDesirePaths(desirePathValues,level,box,tileMap)
 
 def Astar(level, box, house, tileMap):
+	global budget
+	budget = getBudget(level, box, tileMap)
 	global tooHigh
 	openList = []
 	closedList = []
@@ -152,6 +166,57 @@ def Astar(level, box, house, tileMap):
 
 		closedList.append(currentNode)
 
+def findHeatMap(heatMap, paths, level, box, house, tileMap):
+	for pathcosts in paths:
+		for nodeInPath in pathcosts.path:
+			updateValue = 0
+			inHeatMap = False
+			mat = level.blockAt(nodeInPath.x, nodeInPath.y, nodeInPath.z)
+			for mapValue in heatMap:
+				if nodeInPath.x == mapValue.x and nodeInPath.z == mapValue.z:
+					inHeatMap = True
+					mapValue.crossed = mapValue.crossed + 1
+					break
+			if not inHeatMap:
+				hmt = heatmaptile(nodeInPath.x, nodeInPath.y, nodeInPath.z,1,mat)
+				heatMap.append(hmt)
+	return
+
+def getBudget(level, box, tileMap):
+	global widthG
+	global depthG
+	totalspaces = widthG * depthG
+	totalspaces = totalspaces / 10
+	budg = int(totalspaces)
+	return budg
+
+def placeDesirePaths(desirePaths, level, box, tileMap):
+	global budget
+	#so for each block of cobble placed take 1 away from the budget, for each quartz placed take away 3? so it is only placed where it is VERY EFFIECIENT to.
+	placed = 0
+	firstones = len(desirePaths) / 5
+	print("yikes")
+	firstones = int(firstones)
+	print(firstones)
+	#int(varaible) gives the int value without the decimal
+	#while placed < len(desirePaths):
+		#placed = placed + 1
+	return
+
+def findDesirePaths(heatMap):
+	heatmaptemp = heatMap
+	desirePaths = []
+	mostCrossed = 0
+	while len(desirePaths) < 100:
+		for value in heatmaptemp:
+			mostCrossed = value.crossed
+		for value in heatmaptemp:
+			if value.crossed == mostCrossed:
+				desirePaths.append(value)
+				heatmaptemp.remove(value)
+				break
+	return desirePaths
+
 def checkOpenList(childNode,openList):
 	for listNode in openList:
 		if listNode.x == childNode.x and listNode.y == childNode.y and listNode.z == childNode.z:
@@ -182,7 +247,6 @@ def savePath(house,currentNode,pathTaken,tileMap,level,box):
 	global paths
 	thisPath = pathcosthouse(pathTaken,currentNode.gcost,house)
 	paths.append(thisPath)
-	print("Path found from house number: ", house.number,"With cost: ", currentNode.gcost)
 	return
 
 def blockCosts(x,y,z,level,box):
@@ -194,7 +258,7 @@ def blockCosts(x,y,z,level,box):
 	#sand is worse than dirt
 	if block == 12 and data == 0:
 		return 1.2
-	#quartz is the most efficient road type
+	#quartz is the fastest road type
 	if block == 155 and data == 0:
 		return 0.5
 	#dirt blocks
@@ -224,7 +288,6 @@ def checkMat(x,y,z,level,box):
 		return False
 	return True
 
-
 def getTileMap (level, box, maxHeight, minHeight):
 	#This getTileMap() procedure is not written by me this is from the CoGTutorialPillar.py filter by Rodrigo Canaan
 	xmin = box.minx
@@ -238,8 +301,8 @@ def getTileMap (level, box, maxHeight, minHeight):
 	global widthG
 	global depthG
 
-	widthG = xmax-xmin+1
-	depthG = zmax-zmin+1
+	widthG = xmax-xmin
+	depthG = zmax-zmin
 
 	tileMap = empty( (width,depth) ,dtype=object)
 
