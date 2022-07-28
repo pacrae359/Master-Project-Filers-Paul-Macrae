@@ -97,7 +97,7 @@ def perform(level, box, options):
 		Astar(level, box, house, tileMap)
 	findHeatMap(heatMap, paths, level, box, house, tileMap)
 	desirePathValues = findDesirePaths(heatMap)
-	placeDesirePaths(desirePathValues,level,box,tileMap)
+	placeDesirePaths(heatMap,desirePathValues,level,box,tileMap)
 
 def Astar(level, box, house, tileMap):
 	global budget
@@ -187,34 +187,45 @@ def getBudget(level, box, tileMap):
 	global depthG
 	totalspaces = widthG * depthG
 	totalspaces = totalspaces / 10
-	budg = int(totalspaces)
+	budg = round(totalspaces)
 	return budg
 
-def placeDesirePaths(desirePaths, level, box, tileMap):
+def placeDesirePaths(heatMap, desirePaths, level, box, tileMap):
 	global budget
-	#so for each block of cobble placed take 1 away from the budget, for each quartz placed take away 3? so it is only placed where it is VERY EFFIECIENT to.
-	placed = 0
-	firstones = len(desirePaths) / 5
-	print("yikes")
-	firstones = int(firstones)
-	print(firstones)
-	#int(varaible) gives the int value without the decimal
-	#while placed < len(desirePaths):
-		#placed = placed + 1
+	keepDPValues = []
+	#so for each block of cobble placed take 1 away from the budget, for each quartz placed take away 3. Quartz is only to be placed where most effective.
+	finished = False
+	#places cobblestone on locations of desire paths to begin with, while within the budget.
+	while len(desirePaths) > 0 and budget > 0 and not finished:
+		currentCheck = desirePaths[0]
+		keepDPValues.append(desirePaths.pop(0))
+		for HMTile in heatMap:
+			if HMTile.crossed == currentCheck:
+			 	if level.blockAt(HMTile.x, HMTile.y, HMTile.z)!=4 and level.blockAt(HMTile.x, HMTile.y, HMTile.z)!=155:
+					utilityFunctions.setBlock(level, (4, 0), HMTile.x, HMTile.y, HMTile.z)
+					budget = budget - 1
+					break
+	while budget > 2:
+		checkForQuartz = keepDPValues.pop(0)
+		for HMTile in heatMap:
+			if HMTile.crossed == checkForQuartz:
+			 	if level.blockAt(HMTile.x, HMTile.y, HMTile.z)==4:
+					utilityFunctions.setBlock(level, (155, 0), HMTile.x, HMTile.y, HMTile.z)
+					budget = budget - 2
+					break
 	return
 
 def findDesirePaths(heatMap):
-	heatmaptemp = heatMap
+	heatmaptemp = []
+	for value in heatMap:
+		heatmaptemp.append(value)
 	desirePaths = []
 	mostCrossed = 0
-	while len(desirePaths) < 100:
+	while len(heatmaptemp) > 0:
 		for value in heatmaptemp:
-			mostCrossed = value.crossed
-		for value in heatmaptemp:
-			if value.crossed == mostCrossed:
-				desirePaths.append(value)
-				heatmaptemp.remove(value)
-				break
+			desirePaths.append(value.crossed)
+			heatmaptemp.remove(value)
+	desirePaths.sort(reverse=True)
 	return desirePaths
 
 def checkOpenList(childNode,openList):
