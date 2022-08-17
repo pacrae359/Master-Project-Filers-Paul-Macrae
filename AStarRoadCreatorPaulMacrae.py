@@ -48,6 +48,7 @@ class tile:
 		self.y = y
 		self.z = z
 		self.material = material
+
 #class for storing node information
 class node:
 	def __init__(self, x, y, z, fvalue, gcost, parent):
@@ -57,12 +58,21 @@ class node:
 		self.fvalue = fvalue
 		self.gcost = gcost
 		self.parent = parent
+
 #class for storing details of each path and their destination.
 class pathcosthouse:
 	def __init__(self, path, cost, house):
 		self.path = path
 		self.cost = cost
 		self.house = house
+
+#class for storing node information
+class gennode:
+	def __init__(self, x, y, z, crossed):
+		self.x = x
+		self.y = y
+		self.z = z
+		self.crossed
 
 def perform(level, box, options):
 	global paths
@@ -183,7 +193,7 @@ def savePath(house,currentNode,pathTaken,tileMap,level,box):
 	global paths
 	thisPath = pathcosthouse(pathTaken,currentNode.gcost,house)
 	paths.append(thisPath)
-	print("Path found from house number: ", house.number,"With cost: ", currentNode.gcost)
+#	print("Path found from house number: ", house.number,"With cost: ", currentNode.gcost)
 	return
 
 def blockCosts(x,y,z,level,box):

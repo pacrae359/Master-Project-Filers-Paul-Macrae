@@ -15,6 +15,8 @@ tooHigh = False
 paths = []
 heatMap = []
 budget = 0
+widthG = 0
+depthG = 0
 
 inputs = (
 	("Desire Paths Street Network (Non-Iterative)", "label"),

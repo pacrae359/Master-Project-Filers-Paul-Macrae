@@ -16,6 +16,8 @@ paths = []
 heatMap = []
 budget = 0
 periteration = 0
+widthG = 0
+depthG = 0
 
 inputs = (
 	("Desire Paths Street Network (Iterative)", "label"),
